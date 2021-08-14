@@ -1,16 +1,18 @@
 Protocol 2
-HostKey /etc/ssh/ssh_host_ed25529_key
+HostKey /etc/ssh/ssh_host_ed25519_key
 HostKey /etc/ssh/ssh_host_rsa_key
 
 UseDNS no
+LogLevel VERBOSE
 
 AllowAgentForwarding no
 AllowTcpForwarding no
 PasswordAuthentication no
 PermitRootLogin no
+PubKeyAuthentication yes
 X11Forwarding no
 
 # Force users to only use SFTP
 Subsystem sftp internal-sftp
 ForceCommand internal-sftp
-ChrootDirectory /share/home/%u
+ChrootDirectory /share/

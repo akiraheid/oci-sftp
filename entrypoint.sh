@@ -7,36 +7,51 @@ function createUser() {
 		echo "Username can't be empty"
 		exit 1
 	fi
+	echo "Creating user ${username}"
 
+	# Configure user home where SSH information is stored
+	# Not accessible to anyone because we chroot all SFTP users to /share
 	homeDir=/home/$username
-	chrootDir=/share/home/$username
-	mkdir -p $chrootDir $homeDir/.ssh
+	mkdir -p $homeDir/.ssh
 	adduser -h $homeDir -S $username
-	chown -R $username:$username $chrootDir $homeDir
-	chmod 744 $chrootDir
-	chmod 700 $homeDir
+	addgroup $username
 	passwd -u $username
 
 	# Set up user keys
-	keysDir=/keys/$username
-	cat $keysDir/authorized_keys > $homeDir/.ssh/authorized_keys
+	keysDir=/users/$username
+	authKeys=$homeDir/.ssh/authorized_keys
+	cat $keysDir/authorized_keys > $authKeys
+	chmod 700 $homeDir $homeDir/.ssh
+	chmod 600 $authKeys
+	chown -R $username:$username $homeDir
+
+	# Configure shared user directory where other users can see their files
+	shareDir=/share/home/$username
+	mkdir -p $shareDir
+	chmod 755 $shareDir
+	chown -R $username:$username $shareDir
 }
 
-while getopts ":u:" opt; do
-    case $opt in
-    	u)
-			username=$OPTARG
-			createUser "$username"
-    		echo "Added user $username"
-    		;;
-		\?)
-    		echo "Invalid option: -$OPTARG"
-    		exit 1
-    		;;
-    	:)
-    		echo "Option -$OPTARG requires an argument."
-    		exit 1
-    		;;
-	esac
-done
+# Loop through users in /keys and create their accounts
+function createUsers() {
+	cd /users
+	file=/users.txt
+	ls -d -1 */ > $file
+	sed -i "s/\///g" $file
+
+	for i in "$(cat $file)"; do
+		createUser $i
+	done
+	rm $file
+}
+
+function configureServer() {
+	cp /server/ssh* /etc/ssh/
+}
+
+# Script start
+
+chmod 755 /share
+configureServer
+createUsers
 ionice -c 3 /usr/sbin/sshd -D -e
